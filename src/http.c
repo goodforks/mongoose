@@ -170,8 +170,8 @@ static const char *skip(const char *s, const char *e, const char *d,
 }
 
 struct mg_str *mg_http_get_header(struct mg_http_message *h, const char *name) {
-  size_t i, n = strlen(name), max = sizeof(h->headers) / sizeof(h->headers[0]);
-  for (i = 0; i < max && h->headers[i].name.len > 0; i++) {
+  size_t i, n = strlen(name);
+  for (i = 0; i < MG_MAX_HTTP_HEADERS && h->headers[i].name.len > 0; i++) {
     struct mg_str *k = &h->headers[i].name, *v = &h->headers[i].value;
     if (n == k->len && mg_ncasecmp(k->ptr, name, n) == 0) return v;
   }
@@ -225,8 +225,7 @@ int mg_http_parse(const char *s, size_t len, struct mg_http_message *hm) {
     hm->uri.len = (size_t) (qs - hm->uri.ptr);
   }
 
-  mg_http_parse_headers(s, end, hm->headers,
-                        sizeof(hm->headers) / sizeof(hm->headers[0]));
+  mg_http_parse_headers(s, end, hm->headers, MG_MAX_HTTP_HEADERS);
   if ((cl = mg_http_get_header(hm, "Content-Length")) != NULL) {
     hm->body.len = (size_t) mg_to64(*cl);
     hm->message.len = (size_t) req_len + hm->body.len;
@@ -524,7 +523,10 @@ static void printdirentry(const char *name, void *userdata) {
     } else {
       mg_snprintf(sz, sizeof(sz), "%lld", (uint64_t) size);
     }
-    mg_snprintf(mod, sizeof(mod), "%ld", (unsigned long) t);
+    char time_str[30];
+    struct tm * time_info = localtime(&t);
+    strftime(time_str, sizeof time_str, "%Y/%m/%d %H:%M:%S", time_info);
+    mg_snprintf(mod, sizeof(mod), "%s", time_str);
     n = (int) mg_url_encode(name, strlen(name), path, sizeof(path));
     mg_printf(d->c,
               "  <tr><td><a href=\"%.*s%s\">%s%s</a></td>"
